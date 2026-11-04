@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif;
+
+  /* Warm, near-black canvas with a red -> yellow accent ramp. */
+  --color-night: #0a0807;
+  --color-coal: #12100e;
+  --color-card: #171412;
+  --color-cream: #f7f0e9;
+  --color-ash: #a89b92;
+  --color-edge: #302824;
+  --color-flame: #ff4b2b;
+  --color-ember: #ff7a1a;
+  --color-gold: #ffc94a;
+  --color-danger: #ff6259;
+
+  --animate-fade-up: fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade-in: fade-in 0.35s ease both;
+  --animate-pop: pop 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-glow: glow 9s ease-in-out infinite;
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes pop {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes glow {
+    0%,
+    100% {
+      opacity: 0.55;
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+      opacity: 0.9;
+      transform: translate3d(0, -2%, 0) scale(1.07);
+    }
+  }
+}
+
+body {
+  @apply bg-night text-cream font-sans antialiased;
+  min-height: 100vh;
+  font-variant-numeric: tabular-nums;
+  background-image:
+    radial-gradient(55rem 40rem at 12% -12%, rgba(255, 75, 43, 0.16), transparent 62%),
+    radial-gradient(45rem 36rem at 92% 4%, rgba(255, 201, 74, 0.12), transparent 60%),
+    radial-gradient(50rem 42rem at 50% 118%, rgba(255, 122, 26, 0.1), transparent 66%);
+  background-attachment: fixed;
+}
+
+::selection {
+  background: rgba(255, 122, 26, 0.35);
+  color: var(--color-cream);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
