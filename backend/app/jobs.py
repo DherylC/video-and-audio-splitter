@@ -31,11 +31,15 @@ class Job:
     error: Optional[str] = None
     zip_path: Optional[Path] = None
     failed: list[dict] = field(default_factory=list)
+    stage: str = "splitting"  # splitting | spectrogram
+    mel_done: int = 0
+    mel_total: int = 0
 
     def public(self) -> dict:
         return {
             "id": self.id, "status": self.status, "done": self.done, "total": self.total,
             "current": self.current, "error": self.error, "failed": self.failed,
+            "stage": self.stage, "mel_done": self.mel_done, "mel_total": self.mel_total,
         }
 
 
@@ -66,12 +70,19 @@ def _run(job: Job, inputs: list[Path], cfg: SplitConfig) -> None:
     job.status = "running"
 
     def on_progress(done: int, total: int, name: str) -> None:
-        job.done, job.total, job.current = done, total, name
+        job.done, job.total = done, total
+        if name:
+            job.current = name
+
+    def on_mel_progress(done: int, total: int, name: str) -> None:
+        job.mel_done, job.mel_total = done, total
+        if done > 0:  # the 0/total call only announces the total
+            job.stage, job.current = "spectrogram", name
 
     try:
         report = split_media(
             inputs, cfg, job.dir / "result.zip",
-            work_dir=job.dir / "work", on_progress=on_progress,
+            work_dir=job.dir / "work", on_progress=on_progress, on_mel_progress=on_mel_progress,
         )
         job.zip_path = report.zip_path
         job.failed = [{"source": r.source, "error": r.error} for r in report.failed]

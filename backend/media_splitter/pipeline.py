@@ -68,6 +68,7 @@ def split_media(
     out_zip: Path | str,
     work_dir: Optional[Path | str] = None,
     on_progress: Optional[ProgressCallback] = None,
+    on_mel_progress: Optional[ProgressCallback] = None,
 ) -> SplitReport:
     """
     Main entry point. Takes video/audio files and/or zips, writes one zip of chunks.
@@ -107,10 +108,19 @@ def split_media(
                 n += 1
                 rel_dir = rel.parent / f"{rel.stem}_{n}"
             used_dirs.add(rel_dir)
-            jobs.append(_Job(f, rel_dir, kind, dur, _chunk_count(dur, config, kind)))
+            # Extracted video audio goes through the audio pipeline: padded
+            # final clip, chosen format/bitrate, and optional spectrogram.
+            output_kind = "audio" if kind == "video" and config.video_output == "audio" else kind
+            jobs.append(_Job(f, rel_dir, output_kind, dur, _chunk_count(dur, config, output_kind)))
 
         total = sum(j.n_chunks for j in jobs)
         done = 0
+        audio_outputs: list[Path] = []
+        mel_total = sum(j.n_chunks for j in jobs if j.kind == "audio") if config.mel else 0
+        if on_progress:
+            on_progress(0, total, "")
+        if on_mel_progress and mel_total:
+            on_mel_progress(0, mel_total, "")
 
         for job in jobs:
             res = FileResult(str(job.src.name), job.kind)
@@ -130,7 +140,11 @@ def split_media(
                         length = min(config.chunk_seconds, job.duration - start)
                         cut_video(job.src, dst, start, length, config.accurate_video)
                     else:
-                        cut_audio_padded(job.src, dst, start, config.chunk_seconds, config.audio_format)
+                        cut_audio_padded(
+                            job.src, dst, start, config.chunk_seconds,
+                            config.audio_format, config.audio_bitrate,
+                        )
+                        audio_outputs.append(dst)
                     res.chunks += 1
                     done += 1
                     if on_progress:
@@ -138,6 +152,17 @@ def split_media(
             except Exception as e:
                 res.error = str(e)
             results.append(res)
+
+        if config.mel and audio_outputs:
+            from .spectrogram import render_mel_png  # lazy: numpy/matplotlib only needed here
+
+            for i, clip in enumerate(audio_outputs, 1):
+                try:
+                    render_mel_png(clip, clip.with_suffix(".png"), config.chunk_seconds, config.mel)
+                except Exception as e:
+                    results.append(FileResult(f"{clip.name} (spectrogram)", "audio", error=str(e)))
+                if on_mel_progress:
+                    on_mel_progress(i, len(audio_outputs), clip.name)
 
         build_zip(out_dir, out_zip)
         return SplitReport(zip_path=out_zip, results=results)

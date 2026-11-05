@@ -6,7 +6,7 @@ must be re-exported here.
 """
 from __future__ import annotations
 
-from .models import FileResult, SplitConfig, SplitReport
+from .models import AUDIO_BITRATES, FileResult, MelConfig, SplitConfig, SplitReport
 from .pipeline import split_media
 
-__all__ = ["FileResult", "SplitConfig", "SplitReport", "split_media"]
+__all__ = ["AUDIO_BITRATES", "FileResult", "MelConfig", "SplitConfig", "SplitReport", "split_media"]

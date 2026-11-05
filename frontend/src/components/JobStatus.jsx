@@ -2,6 +2,8 @@ export default function JobStatus({ job, onReset }) {
   const { phase } = job;
   if (phase === "idle") return null;
 
+  const melOn = job.melTotal > 0;
+  const melPct = melOn ? Math.round((job.melDone / job.melTotal) * 100) : 0;
   const pct = phase === "uploading" ? job.uploadPct : job.total ? Math.round((job.done / job.total) * 100) : 0;
 
   if (phase === "error") {
@@ -23,7 +25,7 @@ export default function JobStatus({ job, onReset }) {
     return (
       <div className="animate-pop relative overflow-hidden rounded-2xl border border-gold/30 bg-gradient-to-br from-card via-card to-flame/10 p-5 shadow-[0_24px_60px_-40px_rgba(255,122,26,0.8)]">
         <div aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold/70 to-transparent" />
-        <p className="font-bold">{job.total} clips ready</p>
+        <p className="font-bold">{job.total} clips ready{melOn ? ` with ${job.melDone} spectrograms` : ""}</p>
         {job.failed.length > 0 && (
           <ul className="my-2 space-y-1 text-sm text-danger">
             {job.failed.map((f) => <li key={f.source}>{f.source}: {f.error}</li>)}
@@ -50,12 +52,24 @@ export default function JobStatus({ job, onReset }) {
       <p className="mb-3 font-medium">
         {phase === "uploading" ? `Uploading, ${pct}%` : `Splitting ${job.done} of ${job.total || "…"}${job.current ? `, ${job.current}` : ""}`}
       </p>
-      <div className="h-2 overflow-hidden rounded-full bg-edge/60">
-        <div
-          className="h-2 rounded-full bg-gradient-to-r from-flame via-ember to-gold shadow-[0_0_18px_rgba(255,122,26,0.65)] transition-[width] duration-500 ease-out"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
+      <Bar pct={pct} />
+      {melOn && phase === "processing" && (
+        <div className="mt-4">
+          <p className="mb-3 font-medium">Mel spectrograms {job.melDone} of {job.melTotal}</p>
+          <Bar pct={melPct} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Bar({ pct }) {
+  return (
+    <div className="h-2 overflow-hidden rounded-full bg-edge/60">
+      <div
+        className="h-2 rounded-full bg-gradient-to-r from-flame via-ember to-gold shadow-[0_0_18px_rgba(255,122,26,0.65)] transition-[width] duration-500 ease-out"
+        style={{ width: `${pct}%` }}
+      />
     </div>
   );
 }

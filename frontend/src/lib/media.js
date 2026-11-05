@@ -36,15 +36,23 @@ export function probeDuration(file, kind) {
 // Mirrors the backend: audio always rounds up (and pads), video drops
 // remainders under 0.05s and keeps the real length of its final clip.
 export function planClips(duration, chunk, kind) {
-  if (duration <= 0) return [];
+  const safeDuration = Number(duration);
+  const safeChunk = Number(chunk);
+  // A zero/NaN/Infinity chunk used to make `count` Infinity and crash
+  // Array.from with "Invalid array length".
+  if (!Number.isFinite(safeDuration) || !Number.isFinite(safeChunk)) return [];
+  if (safeDuration <= 0 || safeChunk <= 0) return [];
+
   const count =
     kind === "audio"
-      ? Math.max(1, Math.ceil(duration / chunk))
-      : duration > 0.05
-        ? Math.max(1, Math.ceil((duration - 0.05) / chunk))
+      ? Math.max(1, Math.ceil(safeDuration / safeChunk))
+      : safeDuration > 0.05
+        ? Math.max(1, Math.ceil((safeDuration - 0.05) / safeChunk))
         : 0;
+  if (!Number.isFinite(count) || count <= 0) return [];
+
   return Array.from({ length: count }, (_, i) => {
-    const len = Math.min(chunk, duration - i * chunk);
-    return { len, pad: kind === "audio" ? chunk - len : 0 };
+    const len = Math.min(safeChunk, safeDuration - i * safeChunk);
+    return { len, pad: kind === "audio" ? safeChunk - len : 0 };
   });
 }

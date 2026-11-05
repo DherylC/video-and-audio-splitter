@@ -16,7 +16,7 @@ export default function ClipStrip({ duration, chunk, kind }) {
         {clips.map((c, i) => (
           <div key={i} className="flex h-2 flex-1 overflow-hidden rounded-full bg-edge/70">
             <div
-              className="bg-gradient-to-r from-flame to-ember"
+              className="bg-linear-to-r from-flame to-ember"
               style={{ width: `${(c.len / chunk) * 100}%` }}
             />
             {c.pad > 0 && <div style={{ width: `${(c.pad / chunk) * 100}%`, background: HATCH }} />}

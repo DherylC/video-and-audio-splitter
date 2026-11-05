@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from . import SplitConfig, split_media
+from . import MelConfig, SplitConfig, split_media
 
 
 def main() -> None:
@@ -10,10 +10,22 @@ def main() -> None:
     ap.add_argument("-d", "--duration", type=float, required=True, help="chunk length in seconds")
     ap.add_argument("-o", "--output", default="split_output.zip")
     ap.add_argument("--audio-format", default="wav")
+    ap.add_argument("--audio-bitrate", type=int, default=192, choices=[64, 128, 192, 256, 320],
+                    help="lossy bitrate in kbps (ignored for wav/flac)")
     ap.add_argument("--fast-video", action="store_true", help="stream copy (keyframe-snapped cuts)")
+    ap.add_argument("--video-output", choices=["video", "audio"], default="video",
+                    help="split videos as-is, or extract their audio into padded clips")
+    ap.add_argument("--mel", action="store_true", help="also write mel spectrogram PNGs (default speech parameters)")
     a = ap.parse_args()
 
-    cfg = SplitConfig(a.duration, audio_format=a.audio_format, accurate_video=not a.fast_video)
+    cfg = SplitConfig(
+        a.duration,
+        audio_format=a.audio_format,
+        audio_bitrate=a.audio_bitrate,
+        accurate_video=not a.fast_video,
+        video_output=a.video_output,
+        mel=MelConfig() if a.mel else None,
+    )
     report = split_media(
         a.inputs, cfg, a.output,
         on_progress=lambda d, t, name: print(f"[{d}/{t}] {name}", end="\r"),

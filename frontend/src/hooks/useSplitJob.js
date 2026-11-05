@@ -11,6 +11,8 @@ const initial = {
   failed: [],
   error: null,
   jobId: null,
+  melDone: 0,
+  melTotal: 0,
 };
 
 export function useSplitJob() {
@@ -37,11 +39,11 @@ export function useSplitJob() {
           const j = await res.json();
           if (j.status === "done") {
             stopPolling();
-            setState((s) => ({ ...s, phase: "done", done: j.done, total: j.total, failed: j.failed }));
+            setState((s) => ({ ...s, phase: "done", done: j.done, total: j.total, failed: j.failed, melDone: j.mel_done, melTotal: j.mel_total }));
           } else if (j.status === "error") {
             fail(j.error || "Processing failed");
           } else {
-            setState((s) => ({ ...s, phase: "processing", done: j.done, total: j.total, current: j.current }));
+            setState((s) => ({ ...s, phase: "processing", done: j.done, total: j.total, current: j.current, melDone: j.mel_done, melTotal: j.mel_total }));
           }
         } catch (e) {
           fail(e.message);
@@ -53,7 +55,7 @@ export function useSplitJob() {
 
   // XHR instead of fetch: fetch cannot report upload progress.
   const start = useCallback(
-    (files, duration, { audioFormat = "wav", accurateVideo = true } = {}) => {
+    (files, duration, { audioFormat = "wav", audioBitrate = 192, videoOutput = "video", accurateVideo = true, mel = null } = {}) => {
       stopPolling();
       setState({ ...initial, phase: "uploading" });
 
@@ -61,7 +63,20 @@ export function useSplitJob() {
       files.forEach((f) => form.append("files", f));
       form.append("duration", String(duration));
       form.append("audio_format", audioFormat);
+      form.append("audio_bitrate", String(audioBitrate));
       form.append("accurate_video", String(accurateVideo));
+      form.append("video_output", videoOutput);
+      if (mel) {
+        form.append("mel", "true");
+        form.append("mel_sample_rate", String(mel.sampleRate));
+        form.append("mel_n_fft", String(mel.nFft));
+        form.append("mel_win_length", String(mel.winLength));
+        form.append("mel_hop_length", String(mel.hopLength));
+        form.append("mel_n_mels", String(mel.nMels));
+        form.append("mel_f_min", String(mel.fMin));
+        form.append("mel_f_max", String(mel.fMax));
+        form.append("mel_power", String(mel.power));
+      }
 
       const xhr = new XMLHttpRequest();
       xhrRef.current = xhr;

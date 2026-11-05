@@ -18,6 +18,7 @@
   --animate-fade-up: fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-fade-in: fade-in 0.35s ease both;
   --animate-pop: pop 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-reveal: reveal 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-glow: glow 9s ease-in-out infinite;
 
   @keyframes fade-up {
@@ -51,6 +52,17 @@
     }
   }
 
+  @keyframes reveal {
+    from {
+      opacity: 0;
+      transform: translateY(-10px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
   @keyframes glow {
     0%,
     100% {
@@ -64,15 +76,124 @@
   }
 }
 
+html {
+  color-scheme: dark;
+}
+
+/* Remove every scrollbar while keeping wheel/touch/keyboard scrolling. */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 body {
   @apply bg-night text-cream font-sans antialiased;
   min-height: 100vh;
   font-variant-numeric: tabular-nums;
+  -webkit-user-select: none;
+  user-select: none;
   background-image:
     radial-gradient(55rem 40rem at 12% -12%, rgba(255, 75, 43, 0.16), transparent 62%),
     radial-gradient(45rem 36rem at 92% 4%, rgba(255, 201, 74, 0.12), transparent 60%),
     radial-gradient(50rem 42rem at 50% 118%, rgba(255, 122, 26, 0.1), transparent 66%);
   background-attachment: fixed;
+}
+
+/* Form fields still need normal text selection for editing. */
+input,
+textarea,
+select,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Strip the native number spinners so custom steppers/inputs look intentional. */
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Bitrate slider: five snapped stops on a red -> gold rail. */
+.bitrate-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 18px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.bitrate-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, #ff4b2b, #ff7a1a 55%, #ffc94a) 0 / var(--bitrate-progress, 50%) 100% no-repeat,
+    #302824;
+}
+
+.bitrate-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -5px;
+  height: 16px;
+  width: 16px;
+  border: 2px solid #0a0807;
+  border-radius: 999px;
+  background: #ffc94a;
+  box-shadow: 0 0 0 1px rgba(255, 201, 74, 0.45), 0 0 16px rgba(255, 201, 74, 0.7);
+  transition: transform 150ms ease;
+}
+
+.bitrate-slider:active::-webkit-slider-thumb {
+  transform: scale(1.15);
+}
+
+.bitrate-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: #302824;
+}
+
+.bitrate-slider::-moz-range-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ff4b2b, #ff7a1a 55%, #ffc94a);
+}
+
+.bitrate-slider::-moz-range-thumb {
+  height: 16px;
+  width: 16px;
+  border: 2px solid #0a0807;
+  border-radius: 999px;
+  background: #ffc94a;
+  box-shadow: 0 0 0 1px rgba(255, 201, 74, 0.45), 0 0 16px rgba(255, 201, 74, 0.7);
+}
+
+.bitrate-slider:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.bitrate-slider:disabled::-webkit-slider-thumb {
+  background: #a89b92;
+  box-shadow: none;
+}
+
+.bitrate-slider:disabled::-moz-range-thumb {
+  background: #a89b92;
+  box-shadow: none;
 }
 
 ::selection {
