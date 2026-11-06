@@ -1,9 +1,13 @@
 import { useCallback, useRef, useState } from "react";
+import { Files } from "lucide-react";
 import DropZone from "./components/DropZone";
 import FileRow from "./components/FileRow";
+import FileListDialog from "./components/FileListDialog";
 import HelpDialog from "./components/HelpDialog";
 import SettingsPanel from "./components/SettingsPanel";
+import SortControl from "./components/SortControl";
 import JobStatus from "./components/JobStatus";
+import { clipsForItem } from "./lib/media";
 import { useFileQueue } from "./hooks/useFileQueue";
 import { useSplitJob } from "./hooks/useSplitJob";
 import { useMelSettings } from "./hooks/useMelSettings";
@@ -16,12 +20,22 @@ export default function App() {
   const [audioFormat, setAudioFormat] = useState("wav");
   const [audioBitrate, setAudioBitrate] = useState(192);
   const [videoOutput, setVideoOutput] = useState("video");
+  const [singleFolder, setSingleFolder] = useState(false);
+  const [includeMedia, setIncludeMedia] = useState(true);
   const [accurateVideo, setAccurateVideo] = useState(true);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [filesOpen, setFilesOpen] = useState(false);
+  const [sortBy, setSortBy] = useState("name");
+  const [sortDir, setSortDir] = useState("asc");
   const helpButtonRef = useRef(null);
+  const showMoreRef = useRef(null);
   const closeHelp = useCallback(() => {
     setHelpOpen(false);
     helpButtonRef.current?.focus();
+  }, []);
+  const closeFiles = useCallback(() => {
+    setFilesOpen(false);
+    showMoreRef.current?.focus();
   }, []);
 
   const locked = job.phase !== "idle" && job.phase !== "error";
@@ -30,7 +44,33 @@ export default function App() {
   const hasFiles = queue.items.length > 0;
   const canSplit = !locked && queue.items.length > 0 && validDuration && !mel.error;
 
-  const reset = () => { job.reset(); queue.clear(); };
+  const nameCompare = (a, b) => a.file.name.localeCompare(b.file.name, undefined, { numeric: true, sensitivity: "base" });
+  const sortedItems = [...queue.items].sort((a, b) => {
+    if (sortBy === "duration" && (a.duration == null || b.duration == null)) {
+      // Files still probing their duration stay at the bottom.
+      if (a.duration == null && b.duration == null) return nameCompare(a, b);
+      return a.duration == null ? 1 : -1;
+    }
+    let diff;
+    if (sortBy === "name") diff = nameCompare(a, b);
+    else if (sortBy === "duration") diff = a.duration - b.duration || nameCompare(a, b);
+    else diff = a.file.size - b.file.size || nameCompare(a, b);
+    return sortDir === "asc" ? diff : -diff;
+  });
+  const visibleItems = sortedItems.slice(0, 3);
+  const totalClips = sortedItems.reduce((sum, item) => sum + (clipsForItem(item, duration, videoOutput) ?? 0), 0);
+  const pendingDurations = sortedItems.some((item) => item.kind !== "zip" && !item.duration);
+
+  const removeItem = (id) => {
+    if (queue.items.length <= 1) setFilesOpen(false);
+    queue.remove(id);
+  };
+
+  const reset = () => {
+    setFilesOpen(false);
+    job.reset();
+    queue.clear();
+  };
 
   return (
     <>
@@ -84,19 +124,53 @@ export default function App() {
             <DropZone onFiles={queue.add} disabled={locked} rejected={queue.rejected} />
           </div>
 
-          {queue.items.length > 0 && (
-            <ul className="space-y-3">
-              {queue.items.map((item, index) => (
-                <FileRow
-                  key={item.id}
-                  index={index}
-                  item={item}
-                  chunk={duration}
-                  onRemove={queue.remove}
-                  locked={locked}
+          {hasFiles && (
+            <div className="animate-fade-up space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-ash">
+                  <span className="font-bold text-cream">{sortedItems.length}</span>{" "}
+                  {sortedItems.length === 1 ? "file" : "files"}
+                  <span className="px-1.5 text-edge">·</span>
+                  {totalClips}{pendingDurations ? "+" : ""} clips
+                </p>
+                <SortControl
+                  sortBy={sortBy}
+                  setSortBy={setSortBy}
+                  sortDir={sortDir}
+                  setSortDir={setSortDir}
                 />
-              ))}
-            </ul>
+              </div>
+
+              <ul className="space-y-3">
+                {visibleItems.map((item, index) => (
+                  <FileRow
+                    key={item.id}
+                    index={index}
+                    item={item}
+                    chunk={duration}
+                    clips={clipsForItem(item, duration, videoOutput)}
+                    stripKind={item.kind === "video" && videoOutput === "audio" ? "audio" : item.kind}
+                    onRemove={removeItem}
+                    locked={locked}
+                  />
+                ))}
+              </ul>
+
+              {sortedItems.length > 3 && (
+                <button
+                  ref={showMoreRef}
+                  type="button"
+                  onClick={() => setFilesOpen(true)}
+                  className="group flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-edge bg-card/40 px-4 py-3 text-sm font-semibold text-ash transition-all duration-200 hover:border-gold/40 hover:bg-card/70 hover:text-gold"
+                >
+                  <Files aria-hidden="true" className="h-4 w-4" />
+                  Show more
+                  <span className="rounded-full border border-edge bg-night/60 px-2 py-0.5 text-[11px] font-bold text-cream transition-colors duration-200 group-hover:border-gold/40 group-hover:text-gold">
+                    +{sortedItems.length - 3}
+                  </span>
+                </button>
+              )}
+            </div>
           )}
 
           {hasFiles && (
@@ -109,13 +183,15 @@ export default function App() {
                   accurateVideo={accurateVideo} setAccurateVideo={setAccurateVideo}
                   hasVideo={hasVideo}
                   videoOutput={videoOutput} setVideoOutput={setVideoOutput}
+                  singleFolder={singleFolder} setSingleFolder={setSingleFolder}
+                  includeMedia={includeMedia} setIncludeMedia={setIncludeMedia}
                   disabled={locked}
                   mel={mel}
                 />
               </div>
 
               <button
-                onClick={() => job.start(queue.items.map((i) => i.file), duration, { audioFormat, audioBitrate, videoOutput, accurateVideo, mel: mel.payload })}
+                onClick={() => job.start(queue.items.map((i) => i.file), duration, { audioFormat, audioBitrate, videoOutput, singleFolder, includeMedia, includeSpectrograms: mel.enabled, accurateVideo, mel: mel.payload })}
                 disabled={!canSplit}
                 className="group relative animate-fade-up overflow-hidden rounded-2xl bg-linear-to-r from-flame via-ember to-gold px-6 py-4 text-base font-bold text-night shadow-[0_14px_44px_-14px_rgba(255,75,43,0.8)] transition-all duration-300 [animation-delay:200ms] hover:-translate-y-0.5 hover:shadow-[0_20px_54px_-14px_rgba(255,122,26,0.9)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-y-0 disabled:hover:shadow-none"
               >
@@ -130,6 +206,21 @@ export default function App() {
           )}
         </div>
       </main>
+
+      {filesOpen && hasFiles && (
+        <FileListDialog
+          items={sortedItems}
+          chunk={duration}
+          videoOutput={videoOutput}
+          locked={locked}
+          onRemove={removeItem}
+          onClose={closeFiles}
+          sortBy={sortBy}
+          setSortBy={setSortBy}
+          sortDir={sortDir}
+          setSortDir={setSortDir}
+        />
+      )}
 
       {helpOpen && <HelpDialog onClose={closeHelp} />}
     </>

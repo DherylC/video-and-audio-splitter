@@ -73,8 +73,11 @@ def split_media(
     """
     Main entry point. Takes video/audio files and/or zips, writes one zip of chunks.
 
-    Output layout inside the zip: <source_stem>/<source_stem>_001.<ext>, ...
-    (Zip sub-folders are preserved: folder/clip.mp4 -> folder/clip/clip_001.mp4)
+    Output layout inside the zip, by default:
+    ``<source_stem>/<source_stem>_001.<ext>`` per file, keeping any zip
+    sub-folders (``folder/clip.mp4`` -> ``folder/clip/clip_001.mp4``).
+    With ``config.single_folder`` every clip goes to the zip root instead and
+    gets a unique flattened prefix (``folder_clip_001.mp4``).
     """
     require_ffmpeg()
     out_zip = Path(out_zip)
@@ -116,15 +119,28 @@ def split_media(
         total = sum(j.n_chunks for j in jobs)
         done = 0
         audio_outputs: list[Path] = []
-        mel_total = sum(j.n_chunks for j in jobs if j.kind == "audio") if config.mel else 0
+        mel_total = sum(j.n_chunks for j in jobs if j.kind == "audio") if config.mel and config.include_spectrograms else 0
         if on_progress:
             on_progress(0, total, "")
         if on_mel_progress and mel_total:
             on_mel_progress(0, mel_total, "")
 
+        used_flat: set[str] = set()
         for job in jobs:
             res = FileResult(str(job.src.name), job.kind)
-            target = out_dir / job.rel_dir
+            if config.single_folder:
+                # Flat zip: everything sits at the root, so prefix each file
+                # with its unique per-source key to keep names distinct.
+                target = out_dir
+                stem = "_".join(job.rel_dir.parts)
+                base, n = stem, 1
+                while stem.casefold() in used_flat:
+                    n += 1
+                    stem = f"{base}_{n}"
+                used_flat.add(stem.casefold())
+            else:
+                target = out_dir / job.rel_dir
+                stem = job.src.stem
             target.mkdir(parents=True, exist_ok=True)
             ext = ("." + config.audio_format) if job.kind == "audio" else job.src.suffix.lower()
             if job.kind == "video" and config.accurate_video:
@@ -135,7 +151,7 @@ def split_media(
             try:
                 for i in range(job.n_chunks):
                     start = i * config.chunk_seconds
-                    dst = target / f"{job.src.stem}_{i + 1:03d}{ext}"
+                    dst = target / f"{stem}_{i + 1:03d}{ext}"
                     if job.kind == "video":
                         length = min(config.chunk_seconds, job.duration - start)
                         cut_video(job.src, dst, start, length, config.accurate_video)
@@ -153,7 +169,7 @@ def split_media(
                 res.error = str(e)
             results.append(res)
 
-        if config.mel and audio_outputs:
+        if config.mel and config.include_spectrograms and audio_outputs:
             from .spectrogram import render_mel_png  # lazy: numpy/matplotlib only needed here
 
             for i, clip in enumerate(audio_outputs, 1):
@@ -164,7 +180,12 @@ def split_media(
                 if on_mel_progress:
                     on_mel_progress(i, len(audio_outputs), clip.name)
 
-        build_zip(out_dir, out_zip)
+        build_zip(
+            out_dir,
+            out_zip,
+            include_media=config.include_media,
+            include_spectrograms=config.include_spectrograms,
+        )
         return SplitReport(zip_path=out_zip, results=results)
     finally:
         if own_tmp:

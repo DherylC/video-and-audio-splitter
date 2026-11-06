@@ -6,7 +6,9 @@ import {
   ChevronDown,
   Clock3,
   Film,
+  Folder,
   Gauge,
+  Package,
   Scissors,
   SlidersHorizontal,
   TriangleAlert,
@@ -53,10 +55,11 @@ function SettingCard({ icon: Icon, title, description, checked, onChange }) {
   );
 }
 
-export default function SettingsPanel({ duration, setDuration, audioFormat, setAudioFormat, audioBitrate, setAudioBitrate, accurateVideo, setAccurateVideo, hasVideo, videoOutput, setVideoOutput, disabled, mel }) {
+export default function SettingsPanel({ duration, setDuration, audioFormat, setAudioFormat, audioBitrate, setAudioBitrate, accurateVideo, setAccurateVideo, hasVideo, videoOutput, setVideoOutput, singleFolder, setSingleFolder, includeMedia, setIncludeMedia, disabled, mel }) {
   // Kept as a draft: the parent duration only changes on Enter or submit.
   const [customDuration, setCustomDuration] = useState(() => String(duration));
   const [durationWarning, setDurationWarning] = useState(false);
+  const [zipWarning, setZipWarning] = useState(false);
   // The toggle is derived from the format. Remember which lossless format to
   // return to when lossless is switched back on (FLAC keeps it compact).
   const [lastLosslessFormat, setLastLosslessFormat] = useState("flac");
@@ -72,6 +75,24 @@ export default function SettingsPanel({ duration, setDuration, audioFormat, setA
 
   const toggleLossless = () => {
     setAudioFormat(lossless ? "mp3" : lastLosslessFormat);
+  };
+
+  // ZIP contents: spectrogram PNGs follow the Mel setting and cannot be
+  // toggled directly, so Media is the only manual switch. Keep at least one.
+  const toggleMediaOutput = () => {
+    if (includeMedia && !mel.enabled) {
+      setZipWarning(true);
+      return;
+    }
+    setZipWarning(false);
+    setIncludeMedia(!includeMedia);
+  };
+
+  const toggleMel = (enabled) => {
+    mel.setEnabled(enabled);
+    setZipWarning(false);
+    // Spectrograms need media clips; never leave the zip with zero outputs.
+    if (!enabled && !includeMedia) setIncludeMedia(true);
   };
 
   const choosePreset = (seconds) => {
@@ -364,8 +385,89 @@ export default function SettingsPanel({ duration, setDuration, audioFormat, setA
             title="Also convert to Mel Spectrogram"
             description="Adds a PNG for every audio clip, zipped alongside it."
             checked={mel.enabled}
-            onChange={(e) => mel.setEnabled(e.target.checked)}
+            onChange={(e) => toggleMel(e.target.checked)}
           />
+          <SettingCard
+            icon={Folder}
+            title="Single folder"
+            description="Collect every clip in one folder at the zip root, with unique names. Off keeps a separate folder per source file."
+            checked={singleFolder}
+            onChange={(e) => setSingleFolder(e.target.checked)}
+          />
+
+          <div className="rounded-xl border border-edge/70 bg-coal/40 p-3">
+            <p className="mb-2 flex items-center gap-2 text-sm font-bold">
+              <Package aria-hidden="true" className="h-4 w-4 text-gold" />
+              ZIP contents
+            </p>
+
+            <div className="grid gap-2">
+              <button
+                type="button"
+                aria-pressed={includeMedia}
+                onClick={toggleMediaOutput}
+                className={`flex items-start gap-2.5 rounded-lg border p-2.5 text-left transition-all duration-200 ${includeMedia
+                  ? "border-gold/40 bg-linear-to-br from-flame/10 via-transparent to-gold/10 shadow-[0_10px_28px_-24px_rgba(255,201,74,0.9)]"
+                  : "border-edge/70 bg-coal/40 hover:border-gold/30 hover:bg-coal/60"
+                  }`}
+              >
+                <span
+                  className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-all duration-200 ${includeMedia
+                    ? "border-transparent bg-linear-to-br from-flame to-gold text-night"
+                    : "border-edge bg-night/60 text-transparent"
+                    }`}
+                >
+                  {includeMedia && <Check aria-hidden="true" className="h-3 w-3 animate-pop" strokeWidth={3} />}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-xs font-bold">Media (video/audio)</span>
+                  <span className="mt-0.5 block text-[11px] leading-relaxed text-ash">
+                    The clipped media files in the chosen format.
+                  </span>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                aria-pressed={mel.enabled}
+                disabled
+                title={mel.enabled
+                  ? "Controlled by the Mel Spectrogram setting"
+                  : "Turn on the Mel Spectrogram setting to include PNGs"}
+                className={`flex items-start gap-2.5 rounded-lg border p-2.5 text-left transition-all duration-200 ${mel.enabled
+                  ? "border-gold/40 bg-linear-to-br from-flame/10 via-transparent to-gold/10 shadow-[0_10px_28px_-24px_rgba(255,201,74,0.9)]"
+                  : "cursor-not-allowed border-edge/70 bg-coal/40 opacity-55"
+                  }`}
+              >
+                <span
+                  className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-all duration-200 ${mel.enabled
+                    ? "border-transparent bg-linear-to-br from-flame to-gold text-night"
+                    : "border-edge bg-night/60 text-transparent"
+                    }`}
+                >
+                  {mel.enabled && <Check aria-hidden="true" className="h-3 w-3 animate-pop" strokeWidth={3} />}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-xs font-bold">Spectrogram (PNG)</span>
+                  <span className="mt-0.5 block text-[11px] leading-relaxed text-ash">
+                    {mel.enabled
+                      ? "Included automatically while the Mel setting is on."
+                      : "Turn on the Mel Spectrogram setting to enable."}
+                  </span>
+                </span>
+              </button>
+            </div>
+
+            {zipWarning && (
+              <p
+                role="alert"
+                className="mt-2 flex animate-fade-in items-center gap-1.5 text-xs font-medium text-gold"
+              >
+                <TriangleAlert aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+                At least one ZIP output must stay selected.
+              </p>
+            )}
+          </div>
         </div>
       </div>
 

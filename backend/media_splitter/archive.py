@@ -27,10 +27,21 @@ def safe_extract(zip_path: Path, dest: Path) -> list[Path]:
     return extracted
 
 
-def build_zip(folder: Path, zip_path: Path) -> Path:
+def build_zip(
+    folder: Path,
+    zip_path: Path,
+    include_media: bool = True,
+    include_spectrograms: bool = True,
+) -> Path:
     zip_path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for f in sorted(folder.rglob("*")):
-            if f.is_file():
-                zf.write(f, f.relative_to(folder))
+            if not f.is_file():
+                continue
+            if f.suffix.lower() == ".png":
+                if not include_spectrograms:
+                    continue
+            elif not include_media:
+                continue
+            zf.write(f, f.relative_to(folder))
     return zip_path

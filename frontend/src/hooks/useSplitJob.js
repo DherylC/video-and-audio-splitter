@@ -55,7 +55,7 @@ export function useSplitJob() {
 
   // XHR instead of fetch: fetch cannot report upload progress.
   const start = useCallback(
-    (files, duration, { audioFormat = "wav", audioBitrate = 192, videoOutput = "video", accurateVideo = true, mel = null } = {}) => {
+    (files, duration, { audioFormat = "wav", audioBitrate = 192, videoOutput = "video", singleFolder = false, includeMedia = true, includeSpectrograms = true, accurateVideo = true, mel = null } = {}) => {
       stopPolling();
       setState({ ...initial, phase: "uploading" });
 
@@ -66,6 +66,9 @@ export function useSplitJob() {
       form.append("audio_bitrate", String(audioBitrate));
       form.append("accurate_video", String(accurateVideo));
       form.append("video_output", videoOutput);
+      form.append("single_folder", String(singleFolder));
+      form.append("include_media", String(includeMedia));
+      form.append("include_spectrograms", String(includeSpectrograms));
       if (mel) {
         form.append("mel", "true");
         form.append("mel_sample_rate", String(mel.sampleRate));

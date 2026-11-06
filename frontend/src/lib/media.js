@@ -35,22 +35,32 @@ export function probeDuration(file, kind) {
 
 // Mirrors the backend: audio always rounds up (and pads), video drops
 // remainders under 0.05s and keeps the real length of its final clip.
-export function planClips(duration, chunk, kind) {
+export function countClips(duration, chunk, kind) {
   const safeDuration = Number(duration);
   const safeChunk = Number(chunk);
-  // A zero/NaN/Infinity chunk used to make `count` Infinity and crash
+  // A zero/NaN/Infinity chunk used to make the count Infinity and crash
   // Array.from with "Invalid array length".
-  if (!Number.isFinite(safeDuration) || !Number.isFinite(safeChunk)) return [];
-  if (safeDuration <= 0 || safeChunk <= 0) return [];
+  if (!Number.isFinite(safeDuration) || !Number.isFinite(safeChunk)) return 0;
+  if (safeDuration <= 0 || safeChunk <= 0) return 0;
+  if (kind === "audio") return Math.max(1, Math.ceil(safeDuration / safeChunk));
+  if (safeDuration <= 0.05) return 0;
+  return Math.max(1, Math.ceil((safeDuration - 0.05) / safeChunk));
+}
 
-  const count =
-    kind === "audio"
-      ? Math.max(1, Math.ceil(safeDuration / safeChunk))
-      : safeDuration > 0.05
-        ? Math.max(1, Math.ceil((safeDuration - 0.05) / safeChunk))
-        : 0;
-  if (!Number.isFinite(count) || count <= 0) return [];
+// Clip count for a queued item, taking "extract audio from video" into account.
+// Zip archives only reveal their contents after splitting.
+export function clipsForItem(item, chunk, videoOutput) {
+  if (item.kind === "zip" || !item.duration) return null;
+  const kind = item.kind === "video" && videoOutput === "audio" ? "audio" : item.kind;
+  return countClips(item.duration, chunk, kind);
+}
 
+export function planClips(duration, chunk, kind) {
+  const count = countClips(duration, chunk, kind);
+  if (count <= 0) return [];
+
+  const safeDuration = Number(duration);
+  const safeChunk = Number(chunk);
   return Array.from({ length: count }, (_, i) => {
     const len = Math.min(safeChunk, safeDuration - i * safeChunk);
     return { len, pad: kind === "audio" ? safeChunk - len : 0 };

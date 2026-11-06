@@ -60,6 +60,13 @@ class SplitConfig:
     # "video" splits video files as-is; "audio" extracts their soundtrack into
     # padded audio clips using audio_format/audio_bitrate (and mel if enabled).
     video_output: str = "video"
+    # False: <source>/<source>_001.ext (one folder per source, zip folders kept).
+    # True: every clip lands at the zip root with a unique <source>_001.ext name.
+    single_folder: bool = False
+    # Which generated artifacts go into the result zip. Spectrograms can only
+    # be included when ``mel`` is set (and are useless without a media clip).
+    include_media: bool = True
+    include_spectrograms: bool = True
     # Ignore leftovers shorter than this (avoids a 0.02s final chunk).
     min_remainder: float = 0.05
     # When set, every audio clip also gets a mel spectrogram PNG next to it.
@@ -72,6 +79,8 @@ class SplitConfig:
             raise ValueError(f"audio_bitrate must be one of {AUDIO_BITRATES}")
         if self.video_output not in {"video", "audio"}:
             raise ValueError("video_output must be 'video' or 'audio'")
+        if not self.include_media and not self.include_spectrograms:
+            raise ValueError("at least one of include_media/include_spectrograms must be True")
 
 
 @dataclass

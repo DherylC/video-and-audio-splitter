@@ -6,7 +6,14 @@ Splits video/audio files (or zips of them) into fixed-length chunks and returns 
 - **Video → audio** → extracts the soundtrack into padded audio clips (`45s @ 30s → 30s + 15s audio + 15s silence`). Optional Mel spectrogram PNGs are generated too.
 - **Audio** → every chunk is exactly the selected length; the final chunk is padded with silence.
 - **Format + bitrate** → WAV/FLAC (lossless) or MP3 at 64/128/192/256/320 kbps.
+- **Zip layout** → one folder per source file (default) or a single flat folder with
+  unique clip names.
+- **ZIP contents** → include media clips, spectrogram PNGs (available while Mel is on),
+  or both; at least one output is always required.
 - **Clip length** → presets or a custom value (5–3600 s; custom values apply on Enter or blur).
+- **Large queues** → sort by name, duration, or size; the list shows the first 3 files
+  with a **Show more** button that opens a modal with every file, its clip count, and
+  the queue's total clip count.
 
 ## Prerequisites
 
@@ -82,6 +89,20 @@ Open <http://localhost:5173> (Vite uses the next free port if 5173 is taken).
 `vite.config.js` proxies `/api` to `http://127.0.0.1:8000`, so no `.env` file or
 CORS setup is needed for development.
 
+## Managing many files
+
+The queue is built for hundreds of files:
+
+- **Sort** by **Name** (natural order, so `clip_2` comes before `clip_10`),
+  **Duration**, or **Size**. Click the active chip again to reverse the direction.
+- The main list always shows the **first 3 sorted files**. When more are queued, a
+  **Show more** button displays the hidden count and opens an **All files** modal.
+- The modal uses the same sort control (state is shared with the main list) and lists
+  every file with its type, size, duration, **clip count**, and the same **clip strip**
+  as the main list. The header shows the **number of files** and the **total clips** in
+  the queue.
+- Files can be removed from either view. Removing the last file closes the modal.
+
 ## Output format and bitrate
 
 | Selection | Encoding | Approx. size |
@@ -124,6 +145,9 @@ POST /api/split
     audio_format       wav | flac | mp3 | m4a | ogg   (default: wav)
     audio_bitrate      64 | 128 | 192 | 256 | 320     (default: 192, lossy only)
     video_output       video | audio                  (default: video)
+    single_folder      true | false                   (default: false)
+    include_media      true | false                   (default: true)
+    include_spectrograms true | false                 (default: true; needs mel=true)
     accurate_video     true | false                   (default: true)
     mel                true | false                   (default: false)
     mel_sample_rate    default 16000
@@ -163,6 +187,15 @@ clip/clip_002.png
 # audio upload
 speech/speech_001.wav
 speech/speech_002.wav
+
+# single_folder=true (flat zip, unique names)
+speech_001.wav
+speech_002.wav
+folder_clip_001.mp4
+
+# include_media=false (spectrograms only, requires mel)
+speech/speech_001.png
+speech/speech_002.png
 ```
 
 ## CLI / notebook (same core)
@@ -178,6 +211,9 @@ Useful flags:
 --audio-format {wav,flac,mp3,m4a,ogg}   default wav
 --audio-bitrate {64,128,192,256,320}    default 192 (lossy formats only)
 --video-output {video,audio}            default video
+--single-folder                         put every clip in the zip root (unique names)
+--no-media                              omit media clips (requires --mel)
+--no-spectrograms                       omit PNGs even when --mel is on
 --fast-video                            stream copy instead of exact re-encode
 --mel                                   also write Mel spectrogram PNGs
 ```

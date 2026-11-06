@@ -50,6 +50,9 @@ def start_split(
     audio_bitrate: int = Form(192),
     accurate_video: bool = Form(True),
     video_output: str = Form("video"),
+    single_folder: bool = Form(False),
+    include_media: bool = Form(True),
+    include_spectrograms: bool = Form(True),
     mel: bool = Form(False),
     mel_sample_rate: int = Form(16000),
     mel_n_fft: int = Form(400),
@@ -68,6 +71,8 @@ def start_split(
         raise HTTPException(400, f"audio_bitrate must be one of {list(AUDIO_BITRATES)}")
     if video_output not in {"video", "audio"}:
         raise HTTPException(400, "video_output must be 'video' or 'audio'")
+    if not include_media and not (mel and include_spectrograms):
+        raise HTTPException(400, "select at least one ZIP output: media or spectrograms")
 
     mel_cfg = None
     if mel:
@@ -96,6 +101,9 @@ def start_split(
         audio_bitrate=audio_bitrate,
         accurate_video=accurate_video,
         video_output=video_output,
+        single_folder=single_folder,
+        include_media=include_media,
+        include_spectrograms=include_spectrograms,
         mel=mel_cfg,
     )
     jobs.submit(job, saved, cfg)

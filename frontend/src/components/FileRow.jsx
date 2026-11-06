@@ -1,7 +1,7 @@
 import { formatBytes, formatTime } from "../lib/media";
 import ClipStrip from "./ClipStrip";
 
-export default function FileRow({ item, index = 0, chunk, onRemove, locked }) {
+export default function FileRow({ item, index = 0, chunk, clips, stripKind, onRemove, locked }) {
   const { file, kind, duration } = item;
   return (
     <li
@@ -21,11 +21,12 @@ export default function FileRow({ item, index = 0, chunk, onRemove, locked }) {
       <p className="mb-3 text-sm text-ash">
         {kind === "zip" ? "Zip archive" : kind === "video" ? "Video" : "Audio"}, {formatBytes(file.size)}
         {duration ? `, ${formatTime(duration)}` : ""}
+        {clips != null ? `, ${clips} ${clips === 1 ? "clip" : "clips"}` : ""}
       </p>
       {kind === "zip" ? (
         <p className="text-sm text-ash">Clip count is shown after splitting.</p>
       ) : duration ? (
-        <ClipStrip duration={duration} chunk={chunk} kind={kind} />
+        <ClipStrip duration={duration} chunk={chunk} kind={stripKind ?? kind} />
       ) : (
         <p className="text-sm text-ash">Reading duration…</p>
       )}
